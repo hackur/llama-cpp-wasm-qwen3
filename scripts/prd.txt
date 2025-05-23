@@ -1,0 +1,89 @@
+**Project Title:** In-Browser Qwen3 0.6B with llama-cpp-wasm for Tool Calling & Code Generation
+
+**1. Introduction**
+
+This project aims to configure and deploy the `Qwen3-0.6B-UD-Q8_K_XL.gguf` model using `llama-cpp-wasm` to run entirely within a Chrome web browser. The primary goals are to enable robust tool calling capabilities (function calling) and to provide accurate CSS, HTML, and JavaScript code suggestions. The final deliverable should be a working web-based example demonstrating these functionalities.
+
+**2. Goals**
+
+*   Successfully integrate the specified Qwen3 0.6B GGUF model with the `llama-cpp-wasm` library.
+*   Develop a basic HTML/CSS/JavaScript front-end to interact with the model in Chrome.
+*   Implement tool-calling functionality, allowing the LLM to request execution of predefined JavaScript functions.
+*   Enable the LLM to generate useful and accurate HTML, CSS, and JavaScript code snippets based on user prompts.
+*   Ensure the setup can load the model and perform inference within a reasonable time in the browser.
+*   Document the setup process, including model preparation, `llama-cpp-wasm` configuration, and prompt engineering strategies for Qwen3.
+
+**3. Target User**
+
+A developer looking to leverage small, efficient LLMs like Qwen3 0.6B for in-browser AI tasks, including interactive coding assistance and simple agentic behavior through tool use.
+
+**4. Requirements**
+
+**4.1. Core Model & Library Setup:**
+    *   Utilize the `llama-cpp-wasm` project (https://github.com/tangledgroup/llama-cpp-wasm).
+    *   Use the specific GGUF model: `/Users/sarda/.lmstudio/models/kolosal/qwen3-0.6b/Qwen3-0.6B-UD-Q8_K_XL.gguf`.
+    *   The system must run client-side in a modern Chrome browser.
+    *   Instructions should cover acquiring/building `llama-cpp-wasm` and preparing the Qwen3 model.
+    *   Refer to official Qwen documentation for `llama.cpp` usage for Qwen3 models (https://qwen.readthedocs.io/en/latest/run_locally/llama.cpp.html) for relevant parameters and chat templates.
+
+**4.2. Web Interface:**
+    *   A simple HTML page with:
+        *   Text area for user input (prompts).
+        *   Button to submit prompts.
+        *   Area to display model output (text, code, tool interactions).
+    *   JavaScript to handle:
+        *   Loading `llama-cpp-wasm` and the Qwen3 model.
+        *   Sending prompts to the model.
+        *   Receiving and displaying responses.
+        *   Managing the tool-calling loop.
+
+**4.3. Tool Calling Functionality:**
+    *   Define at least two simple JavaScript tools (e.g., `getCurrentTime`, `performCalculation`).
+    *   Develop a prompt engineering strategy to instruct Qwen3 on:
+        *   Recognizing when a tool is needed.
+        *   Understanding available tools and their arguments (JSON format).
+        *   Formatting its output to clearly indicate a tool call (e.g., specific JSON structure or keyword + JSON). Qwen documentation mentions `llama-server` supports `--reasoning-format deepseek` for thinking/tool parsing, which might offer insights for structuring prompts or expected output.
+    *   Implement JavaScript logic to:
+        *   Parse the model's output for tool call requests.
+        *   Execute the called JavaScript tool with provided arguments.
+        *   Return the tool's result to the model.
+        *   Prompt the model again with the tool's result to generate a final user-facing response.
+    *   The `/think` and `/no_think` modes mentioned for `unsloth/Qwen3-0.6B-GGUF` and general Qwen agent capabilities should be investigated for structuring prompts.
+
+**4.4. Code Generation:**
+    *   Develop a prompt engineering strategy for requesting HTML, CSS, and JavaScript code.
+    *   The model should output well-formatted code, preferably within markdown code blocks indicating the language.
+    *   The web interface should be able to display these code snippets clearly (syntax highlighting is a plus).
+
+**4.5. Performance and Usability:**
+    *   Model loading and initial inference should be reasonably fast for a good user experience.
+    *   The interface should be intuitive for basic interaction.
+    *   Error handling for model loading, inference, and tool execution.
+    *   Consider multi-threading capabilities of `llama-cpp-wasm` for performance.
+
+**4.6. Documentation & Confirmation:**
+    *   The process (checklist/Taskmaster plan) should be comprehensive.
+    *   Confirmation requires a working sample that loads in the browser and performs inference, demonstrating both tool calling and a code suggestion.
+
+**5. Non-Goals**
+
+*   Advanced UI/UX design (focus is on functionality).
+*   Support for browsers other than modern Chrome.
+*   Complex server-side infrastructure (everything should be client-side).
+*   Training or fine-tuning the Qwen3 model.
+*   Production-level security for tool execution (e.g., `eval()` for `performCalculation` is acceptable for this PoC but noted as a risk).
+
+**6. Success Criteria**
+
+*   Qwen3 0.6B model successfully loads and runs in Chrome via `llama-cpp-wasm`.
+*   User can input a prompt that triggers a predefined JavaScript tool, the tool executes, and the model uses the result to answer.
+*   User can input a prompt requesting a simple HTML/CSS/JS snippet, and the model provides it.
+*   All steps are clearly documented in the Taskmaster plan.
+
+**7. Key Resources & Research:**
+
+*   `llama-cpp-wasm` GitHub: https://github.com/tangledgroup/llama-cpp-wasm
+*   Qwen `llama.cpp` Documentation: https://qwen.readthedocs.io/en/latest/run_locally/llama.cpp.html
+*   Hugging Face `unsloth/Qwen3-0.6B-GGUF` (for model card details, prompt formats, sampling params): https://huggingface.co/unsloth/Qwen3-0.6B-GGUF
+*   General `llama.cpp` documentation for GGUF parameters, chat templates, and CLI examples.
+*   Research on JavaScript-based tool calling with LLMs. 
