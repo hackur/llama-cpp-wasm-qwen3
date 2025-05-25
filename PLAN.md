@@ -16,40 +16,41 @@
 ### **ID:** 1.1
 **Title:** Phase 1: Project Setup & `llama-cpp-wasm` Integration
 **Description:** Covers initial environment setup, acquiring and configuring the `llama-cpp-wasm` library, and preparing the Qwen3 GGUF model.
-**Status:** pending
+**Status:** done
 **Priority:** high
 **Dependencies:** None
 
     #### **ID:** 1.1.1
     **Title:** Environment Preparation
     **Description:** Set up the necessary development environment.
-    **Status:** pending
+    **Status:** done
     **Priority:** high
     **Details:**
-        - [ ] **Install Git:** Ensure Git is installed on your system. (Ref: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-        - [ ] **Install Node.js and npm/yarn:** Required for `http-server` or other simple web servers. (Ref: https://nodejs.org/)
-        - [ ] **(Optional) Install Emscripten SDK:** If planning to build `llama-cpp-wasm` from source. Follow instructions from https://emscripten.org/docs/getting_started/downloads.html. *Note: Pre-built versions might be available in the `llama-cpp-wasm` repository, which would simplify this step.*
+        - [x] **Install Git:** Ensure Git is installed on your system. (Ref: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+        - [x] **Install Node.js and npm/yarn:** Required for `http-server` or other simple web servers. (Ref: https://nodejs.org/)
+        - [x] **(Optional) Install Emscripten SDK:** If planning to build `llama-cpp-wasm` from source. Follow instructions from https://emscripten.org/docs/getting_started/downloads.html. *Note: Pre-built versions prioritized.*
 
     #### **ID:** 1.1.2
     **Title:** Acquire and Set Up `llama-cpp-wasm`
-    **Description:** Clone the `llama-cpp-wasm` repository and perform initial setup.
-    **Status:** pending
+    **Description:** Clone the `llama-cpp-wasm` repository, obtain pre-built assets, and prepare for integration.
+    **Status:** in-progress
     **Priority:** high
     **Details:**
-        - [ ] **Clone the repository:** `git clone https://github.com/tangledgroup/llama-cpp-wasm.git`
-        - [ ] **Navigate to the project directory:** `cd llama-cpp-wasm`
-        - [ ] **Review Build Instructions:** Check `README.md` or build files (`Makefile`, `CMakeLists.txt`, etc.) for specific build steps if using source. (Ref: https://github.com/tangledgroup/llama-cpp-wasm)
-        - [ ] **Build `llama-cpp-wasm` (if necessary):** Follow repository build instructions. May involve `emmake make` or `cmake` with Emscripten. *Example (general llama.cpp, adapt for wasm): `git submodule update --init --recursive` then build.*
-        - [ ] **Identify pre-built examples:** Look for an `examples` or `demo` directory. The `llama-cpp-wasm` repo has HTML/JS examples.
+        - [x] **Clone the repository:** `git clone https://github.com/tangledgroup/llama-cpp-wasm.git` (Completed)
+        - [x] **Navigate to the project directory:** `cd llama-cpp-wasm` (Implicitly current location for these operations)
+        - [ ] **Obtain pre-built Wasm assets:** Download from https://propjockey.github.io/llama-cpp-wasm-build/. We will likely need the `llama-mt` (multi-threaded) versions of `llama.js`, `llama-worker-mt.js`, and `llama-mt.wasm`. (Action: User to download and place in `qwen3-browser-demo/llama-mt`)
+        - [x] **Review `llama-cpp-wasm` README.md:** Understand how to use the pre-built assets and structure the example project (Ref: `llama-cpp-wasm/README.md`). (Reviewed)
+        - [ ] **(Contingency) Build `llama-cpp-wasm` from source:** If pre-built assets are unsuitable or problematic, follow repository build instructions (e.g., `./build-multi-thread.sh`). This would require Emscripten SDK.
+        - [x] **Identify official examples:** Review examples from `llama-cpp-wasm` repository or their live demo (https://tangledgroup.github.io/llama-cpp-wasm/) to understand API usage and project structure. (Reviewed README example, live demo pending deeper dive)
 
     #### **ID:** 1.1.3
     **Title:** Prepare Your Qwen3 Model
     **Description:** Make the Qwen3 GGUF model accessible to the project.
-    **Status:** pending
+    **Status:** done
     **Priority:** high
     **Details:**
-        - [ ] **Locate your GGUF model:** Confirm path `/Users/sarda/.lmstudio/models/kolosal/qwen3-0.6b/Qwen3-0.6B-UD-Q8_K_XL.gguf`.
-        - [ ] **Copy the model to the project:** Create a `models` directory within your `llama-cpp-wasm` working directory (or a specific example directory) and copy your `.gguf` file into it. (e.g., `mkdir -p examples/my-qwen-chat/models`; `cp /Users/sarda/.lmstudio/models/kolosal/qwen3-0.6b/Qwen3-0.6B-UD-Q8_K_XL.gguf examples/my-qwen-chat/models/`)
+        - [x] **Locate your GGUF model:** Confirmed path `/Users/sarda/.lmstudio/models/kolosal/qwen3-0.6b/Qwen3-0.6B-UD-Q8_K_XL.gguf`.
+        - [x] **Copy the model to the project:** Copied to `qwen3-browser-demo/models/Qwen3-0.6B-UD-Q8_K_XL.gguf`.
 
 ---
 
