@@ -1,0 +1,37 @@
+{
+  "name": "llama-cpp-wasm-qwen3",
+  "version": "1.0.0",
+  "description": "Chrome extension for Qwen3 model using llama-cpp-wasm",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "smoke-test:assets": "bash scripts/download_llama_cpp_wasm_assets.sh",
+    "smoke-test:browser": "http-server qwen3-browser-demo -p 8080 & open http://localhost:8080",
+    "smoke-test:browser-http": "http-server qwen3-browser-demo -p 8080 & open http://localhost:8080",
+    "smoke-test:all": "npm run smoke-test:assets && npm run smoke-test:browser-http",
+    "ext:dev": "mkdir -p extension && http-server extension -p 8081 & open http://localhost:8081",
+    "ext:build": "mkdir -p dist && zip -r dist/qwen3-extension.zip extension/*",
+    "ext:lint": "eslint extension/",
+    "ext:create-dirs": "mkdir -p extension/background extension/popup extension/assets extension/models",
+    "ext:copy-assets": "bash scripts/download_llama_cpp_wasm_assets.sh -d extension/background",
+    "ext:setup": "npm run ext:create-dirs && npm run ext:copy-assets",
+    "tasks": "npx task-master list",
+    "tasks:next": "npx task-master next",
+    "tasks:show": "npx task-master show"
+  },
+  "keywords": [
+    "chrome-extension",
+    "manifest-v3",
+    "llama-cpp",
+    "wasm",
+    "qwen",
+    "language-model"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "http-server": "^14.1.1",
+    "task-master": "^1.0.0"
+  }
+}

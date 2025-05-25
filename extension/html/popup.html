@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qwen3 Extension</title>
+  <link rel="stylesheet" href="../css/popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Qwen3 Local Chat</h1>
+    
+    <div class="chat-area">
+      <div id="responseArea" class="response-area">
+        <p>Enter your prompt below and click 'Send'.</p>
+      </div>
+      <textarea id="promptInput" placeholder="Enter your prompt here..."></textarea>
+    </div>
+    
+    <button id="sendButton">Send</button>
+    <button id="loadModelButton">Load Model</button> 
+    <div id="statusArea" class="status-area">Model status: <span id="modelStatus">Unknown</span></div>
+  </div>
+  <script src="../js/popup.js"></script>
+</body>
+</html>
