@@ -1,10 +1,10 @@
-# Chrome Extension Development Plan: Qwen3 with llama-cpp-wasm
+# Chrome Extension Development Plan: llm-proxy-ext (using Qwen3 with llama-cpp-wasm)
 
-This document outlines the comprehensive plan for transforming the existing Qwen3 with llama-cpp-wasm browser demo into a fully functional Chrome extension. It includes detailed steps, implementation notes, and technical requirements.
+This document outlines the comprehensive plan for developing the llm-proxy-ext Chrome extension, initially using Qwen3 with llama-cpp-wasm. It includes detailed steps, implementation notes, and technical requirements.
 
 ## Project Overview
 
-We're building a Chrome extension that allows users to interact with the Qwen3 0.6B language model directly in their browser. The extension will leverage the existing llama-cpp-wasm implementation but adapt it to work within the Chrome extension architecture using Manifest V3.
+We're building the llm-proxy-ext, a Chrome extension that allows users to interact with LLMs, starting with the Qwen3 0.6B language model locally in their browser. The extension will leverage the existing llama-cpp-wasm implementation but adapt it to work within the Chrome extension architecture using Manifest V3.
 
 ## Development Tasks
 
@@ -69,35 +69,53 @@ We're building a Chrome extension that allows users to interact with the Qwen3 0
    - Configure appropriate CSP for WebAssembly
    - Set up worker-src policy for WebWorkers
 
-### Task 3: Develop background script (background.js)
+### Task 3: Develop Background Script (`background.js`)
 
-**Description**: Adapt existing llama-cpp-wasm code to run within a service worker environment, handle async operations, and manage model lifecycle.
+**Description**: Implement the background service worker to manage the offscreen document, act as a message broker between the popup and the offscreen document, and handle overall extension lifecycle events.
 
 **Subtasks**:
-1. **Port core llama-cpp-wasm functionality**
-   - Adapt worker initialization for service worker context
-   - Modify file loading mechanisms to work with extension resources
-   - Implement appropriate error handling for extension context
+1.  **Implement Offscreen Document Management**
+    -   Develop logic to create and manage the lifecycle of `offscreen.html`.
+    -   Ensure only one offscreen document instance is active.
+    -   Handle errors during offscreen document creation/termination.
 
-2. **Implement model lifecycle management**
-   - Create model initialization logic
-   - Handle service worker activation/termination events
-   - Implement memory management optimizations
+2.  **Set up Messaging Infrastructure (Broker)**
+    -   Define message handlers to receive requests from `popup.js` (e.g., load model, send prompt).
+    -   Relay these requests to the offscreen document.
+    -   Receive responses/status updates from `offscreen.js`.
+    -   Relay these responses/status updates back to `popup.js`.
+    -   Manage `sendResponse` callbacks for asynchronous message handling.
 
-3. **Set up messaging infrastructure**
-   - Define message handlers for popup communication
-   - Create message types for different operations
-   - Implement response routing mechanism
+3.  **Implement Status Management**
+    -   Use `chrome.storage.local` to store and update the model's status (e.g., `not_loaded`, `loading`, `loaded`, `error`).
+    -   Provide functions to update the popup UI with the current model status.
 
-4. **Create model inference pipeline**
-   - Adapt prompt processing logic 
-   - Implement token streaming functionality
-   - Add support for inference parameter configuration
+4.  **Handle Extension Lifecycle Events**
+    -   `onInstalled`: Initialize default settings (e.g., model status).
+    -   Consider any necessary actions on extension updates.
 
-5. **Implement persistence layer**
-   - Add configuration storage using Chrome Storage API
-   - Create model caching mechanism if applicable
-   - Implement conversation history storage
+### Task 3.5: Develop Offscreen Document (`offscreen.html`, `offscreen.js`)
+
+**Description**: Create the offscreen document environment to host the `LlamaCpp` instance and its Web Workers, enabling model loading and inference outside the service worker's restricted context.
+
+**Subtasks**:
+1.  **Create `offscreen.html`**
+    -   Minimal HTML structure to load `offscreen.js`.
+
+2.  **Implement `offscreen.js` Logic**
+    -   Import and instantiate `LlamaCpp` from `js/lib/llama.js`.
+    -   Handle `LlamaCpp` initialization, including providing model URL and callbacks.
+    -   Set up message listeners to receive commands from `background.js` (e.g., `OFFSCREEN_INIT_MODEL`, `OFFSCREEN_RUN_PROMPT`).
+
+3.  **Implement Model Interaction Logic**
+    -   Manage the `LlamaCpp` instance lifecycle within the offscreen document.
+    -   Process model loading requests, including fetching the model file via `chrome.runtime.getURL()`.
+    -   Handle prompt execution requests.
+    -   Collect model responses (potentially streaming).
+
+4.  **Communicate with Background Script**
+    -   Send status updates to `background.js` (e.g., `OFFSCREEN_MODEL_LOADED`, `OFFSCREEN_MODEL_INIT_ERROR`, `OFFSCREEN_MODEL_RESPONSE`).
+    -   Report any errors encountered during model operations.
 
 ### Task 4: Develop popup UI (popup.html, popup.js)
 
@@ -159,35 +177,30 @@ We're building a Chrome extension that allows users to interact with the Qwen3 0
    - Add health check mechanisms
    - Create user feedback for connection state changes
 
-### Task 6: Implement model loading in background script
+### Task 6: Implement Model Loading (Primarily in Offscreen Document)
 
-**Description**: Create a mechanism for loading the Qwen3 GGUF model into the Chrome extension background script.
+**Description**: Create a mechanism for loading the Qwen3 GGUF model. The core loading logic will reside in `offscreen.js`, initiated and managed via `background.js`.
 
 **Subtasks**:
-1. **Research model loading approaches**
-   - Evaluate embedding the model in the extension
-   - Consider loading from a remote URL
-   - Explore loading from local file system (with user permission)
+1.  **Model File Accessibility**
+    -   Ensure the model file (e.g., `models/Qwen3-0.6B-UD-Q8_K_XL.gguf`) is correctly placed in the extension package.
+    -   Verify `web_accessible_resources` in `manifest.json` allows the offscreen document/workers to fetch the model and `main.wasm`.
 
-2. **Implement model download mechanism**
-   - Create progress indication UI
-   - Add resumable download support if applicable
-   - Implement verification of downloaded model integrity
+2.  **Initiate Loading from Popup/Background**
+    -   Popup sends `LOAD_MODEL` message to `background.js`.
+    -   `background.js` ensures the offscreen document is running and relays an `OFFSCREEN_INIT_MODEL` message to `offscreen.js`, providing the model URL (obtained via `chrome.runtime.getURL()`).
 
-3. **Adapt WebAssembly loading for extension context**
-   - Modify existing code to work within extension CSP constraints
-   - Update file path handling for extension environment
-   - Add appropriate error handling for loading failures
+3.  **Implement Model Loading in `offscreen.js`**
+    -   `offscreen.js` receives the model URL and passes it to the `LlamaCpp` constructor.
+    -   `LlamaCpp` (in `js/lib/llama.js`) handles fetching the model and `main.wasm`, and instantiating the Web Worker (`js/lib/main-worker.js`).
+    -   Handle errors during fetching or WebAssembly compilation.
 
-4. **Implement model initialization**
-   - Create initialization sequence with proper error handling
-   - Add model verification step
-   - Implement model configuration loading
+4.  **Status Reporting**
+    -   `offscreen.js` reports loading progress/status (e.g., `OFFSCREEN_MODEL_LOADED`, `OFFSCREEN_MODEL_INIT_ERROR`) back to `background.js`.
+    -   `background.js` relays this status to `popup.js` for UI updates.
 
-5. **Add model caching mechanism**
-   - Implement persistent storage for model file
-   - Create cache invalidation logic
-   - Add version checking for model updates
+5.  **Model Caching (Consideration for Future)**
+    -   Currently, the model is bundled. If dynamic downloading were implemented, caching via `chrome.storage.local` or IndexedDB would be relevant here (managed by offscreen/background).
 
 ### Task 7: Test basic functionality of the Chrome extension
 

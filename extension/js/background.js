@@ -1,63 +1,48 @@
-// background.js - Service Worker for Qwen3 Llama.cpp Wasm Extension
+// background.js - Service Worker (Reintroducing onInstalled and constants)
+console.log('llm-proxy-ext: Background SW started (v3)');
 
-console.log('Qwen3 Extension Background Service Worker started.');
+const MODEL_FILE_PATH = 'models/Qwen3-0.6B-UD-Q8_K_XL.gguf';
+const OFFSCREEN_DOCUMENT_PATH = 'html/offscreen.html';
 
-// Placeholder for llama-cpp-wasm initialization and model loading
-async function initializeModel() {
-  console.log('Attempting to initialize model...');
-  // TODO: Adapt llama-cpp-wasm loading logic here
-  // This will involve:
-  // 1. Importing or loading the llama.js script from llama-cpp-wasm
-  // 2. Setting up the worker paths for llama-cpp-wasm
-  // 3. Instantiating the LlamaCpp class
-}
+// let creatingOffscreenPromise = null; // Still commented out
+// let popupSendResponse = null; // Still commented out
 
-// Listener for messages from popup or other extension components
+/* // Functions still commented out
+function updatePopupStatus(status, message = '') { ... }
+async function hasOffscreenDocument(path) { ... }
+async function setupOffscreenDocument() { ... }
+*/
+
+// Listener for messages from popup or offscreen document
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Message received in background script:', request);
+  console.log('Background (v3): Message received:', request, 'From:', sender.url || sender.id);
 
   if (request.action === 'PING') {
-    console.log('Received PING from:', sender);
-    sendResponse({ message: 'PONG from background script' });
-    return true; // Indicates that the response will be sent asynchronously
+    console.log('Background (v3): Received PING from popup.');
+    sendResponse({ message: 'PONG from background script (v3)' });
+    return false; // Synchronous response
+  } else {
+    console.log('Background (v3): Received other action:', request.action);
+    // For now, just acknowledge other actions without processing
+    if (sendResponse) {
+        sendResponse({ success: false, message: `Action ${request.action} received but not processed in v3.` });
+    }
   }
-
-  if (request.action === 'LOAD_MODEL') {
-    initializeModel().then(() => {
-      sendResponse({ success: true, message: 'Model initialization process started.' });
-    }).catch(error => {
-      console.error('Model initialization failed:', error);
-      sendResponse({ success: false, message: 'Model initialization failed.', error: error.message });
-    });
-    return true; // Indicates that the response will be sent asynchronously
-  }
-
-  if (request.action === 'SEND_PROMPT') {
-    const prompt = request.prompt;
-    console.log('Received prompt:', prompt);
-    // TODO: Implement prompt processing with the loaded model
-    // For now, just echo back
-    sendResponse({ success: true, response: `Background received: "${prompt}". Model processing not yet implemented.` });
-    return true;
-  }
-
-  // Default response for unhandled actions
-  sendResponse({ success: false, message: 'Unknown action' });
-  return true; 
+  return true; // Keep open for potential async response
 });
 
-// Optional: Perform some action on extension installation or update
 chrome.runtime.onInstalled.addListener((details) => {
+  console.log('llm-proxy-ext: onInstalled event triggered.', details);
   if (details.reason === 'install') {
-    console.log('Qwen3 Extension installed.');
-    // Perform first-time setup, e.g., initialize storage
-    chrome.storage.local.set({ modelStatus: 'not_loaded' });
+    console.log('llm-proxy-ext: First install.');
+    chrome.storage.local.set({ modelStatus: 'not_loaded', modelPath: MODEL_FILE_PATH });
   } else if (details.reason === 'update') {
-    console.log('Qwen3 Extension updated to version', chrome.runtime.getManifest().version);
+    console.log('llm-proxy-ext: Extension updated to version', chrome.runtime.getManifest().version);
+    // Potentially re-set or migrate storage if needed on update
+    chrome.storage.local.set({ modelPath: MODEL_FILE_PATH }); // Ensure modelPath is set
   }
+  // Consider if offscreen document should be created here if it's always needed
+  // setupOffscreenDocument(); 
 });
 
-// Attempt to initialize the model when the service worker starts
-// This might be too early if wasm files are not yet available or if it's resource-intensive
-// Consider triggering this from the popup or a user action.
-// initializeModel();
+console.log('llm-proxy-ext: Background SW initial execution complete (v3)');

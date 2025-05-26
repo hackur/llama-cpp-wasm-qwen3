@@ -1,0 +1,113 @@
+/* popup.css - Styles for the Qwen3 Extension popup */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  background-color: #f4f4f9;
+  color: #333;
+  width: 380px; /* Standard popup width */
+  padding: 10px;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  font-size: 1.2em;
+  color: #2c3e50;
+  margin-top: 5px;
+  margin-bottom: 10px;
+}
+
+.chat-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.response-area {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  height: 200px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.response-area p {
+  margin: 0 0 8px 0;
+  word-wrap: break-word;
+}
+
+.response-area .user-prompt {
+  color: #2980b9;
+  font-weight: bold;
+}
+
+.response-area .model-response {
+  color: #2c3e50;
+}
+
+.response-area .error {
+  color: #c0392b;
+  font-style: italic;
+}
+
+.response-area .status,
+.response-area .warning {
+  color: #7f8c8d;
+  font-size: 0.8em;
+}
+
+textarea#promptInput {
+  width: calc(100% - 22px); /* Account for padding and border */
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 50px;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 0.9em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin: 5px;
+}
+
+button:hover {
+  background-color: #2980b9;
+}
+
+button:active {
+  background-color: #2471a3;
+}
+
+.status-area {
+  font-size: 0.8em;
+  color: #555;
+  margin-top: 10px;
+  text-align: center;
+  width: 100%;
+}
+
+#modelStatus {
+  font-weight: bold;
+}
