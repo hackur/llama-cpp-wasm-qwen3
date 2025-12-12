@@ -32,4 +32,11 @@ tasks/
 .roo/mcp.json 
 
 llama-cpp-wasm
-*.gguf.playwright-mcp/
+
+# Model files (large binary files)
+*.gguf
+models/
+**/models/*.gguf
+
+# Playwright MCP temp files
+.playwright-mcp/
