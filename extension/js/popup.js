@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadModelButton = document.getElementById('loadModelButton');
   const responseArea = document.getElementById('responseArea');
   const modelStatusSpan = document.getElementById('modelStatus');
+  const checkOffscreenButton = document.getElementById('checkOffscreenButton');
+  const offscreenStatusSpan = document.getElementById('offscreenStatus');
+  console.log('Popup: Attempting to get checkOffscreenButton. ID used: checkOffscreenButton');
 
   // Function to add messages to the response area
   function addMessageToResponseArea(text, type = 'info') {
@@ -93,6 +96,43 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('Unexpected PING response:', response);
     }
   });
+
+  // Handle Check Offscreen Document button click
+  if (checkOffscreenButton) {
+    console.log('Popup: checkOffscreenButton element FOUND. Attaching listener.');
+    checkOffscreenButton.addEventListener('click', () => {
+    console.log('!!!!!!!!!! CHECK OFFSCREEN BUTTON CLICKED !!!!!!!!!!');
+    console.log('Popup: Check Offscreen Doc button clicked.'); // Restored original log
+    addMessageToResponseArea('Checking offscreen document status...', 'status');
+    offscreenStatusSpan.textContent = 'checking...';
+
+    chrome.runtime.sendMessage({ action: 'CHECK_OFFSCREEN_STATUS' }, (response) => {
+      console.log('Popup: Received response from CHECK_OFFSCREEN_STATUS:', response); // Restored original log
+      if (chrome.runtime.lastError) {
+        const errorMsg = `Error checking offscreen status: ${chrome.runtime.lastError.message}`;
+        addMessageToResponseArea(errorMsg, 'error');
+        offscreenStatusSpan.textContent = 'Error';
+        console.error(errorMsg);
+        return;
+      }
+      if (response && response.success) {
+        const statusText = response.hasOffscreenDocument ? 'Exists' : 'Not Found';
+        addMessageToResponseArea(`Offscreen document status: ${statusText}`, 'status');
+        offscreenStatusSpan.textContent = statusText;
+        console.log(`Popup: Offscreen status updated to: ${statusText}`); // Added log for confirmation
+      } else {
+        const failMsg = `Failed to check offscreen status: ${response ? response.error || response.message : 'No/invalid response.'}`;
+        addMessageToResponseArea(failMsg, 'error');
+        offscreenStatusSpan.textContent = 'Error';
+        console.error(failMsg);
+      }
+    });
+    console.log('Popup: CHECK_OFFSCREEN_STATUS message sending initiated.'); // Clarified log
+    });
+  } else {
+    console.error('Popup: checkOffscreenButton element NOT FOUND. Listener not attached.');
+    addMessageToResponseArea('Error: UI element for Check Offscreen Doc button not found.', 'error');
+  }
 
   // Allow sending prompt with Enter key
   promptInput.addEventListener('keypress', (event) => {
