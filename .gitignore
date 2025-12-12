@@ -32,4 +32,4 @@ tasks/
 .roo/mcp.json 
 
 llama-cpp-wasm
-*.gguf
+*.gguf.playwright-mcp/

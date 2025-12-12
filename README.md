@@ -1,156 +1,175 @@
-# llama-cpp-wasm-qwen3
+# Qwen3 Browser LLM
 
-Run Qwen3 language models entirely in the browser using WebAssembly.
+Run the Qwen3-0.6B language model directly in your browser using WebAssembly. This project demonstrates client-side LLM inference without any server-side processing.
+
+![Demo](docs/demo-qwen3.gif)
+
+## Overview
+
+This project provides two implementations for running Qwen3 locally:
+
+1. **Browser Demo** - A standalone web page that loads and runs the model
+2. **Chrome Extension** - A Manifest V3 extension with popup interface
+
+Both implementations use [wllama](https://github.com/ngxson/wllama), a WebAssembly port of [llama.cpp](https://github.com/ggerganov/llama.cpp), to run inference entirely in the browser.
 
 ## Features
 
-- **No server required** - Everything runs client-side
-- **Web Worker threading** - UI stays responsive during inference
-- **Model caching** - Downloads cached via Cache API
-- **Two interfaces** - Standalone web demo and Chrome extension
+- Client-side inference with no server required
+- Multi-threaded WebAssembly for improved performance
+- Model caching in IndexedDB for faster subsequent loads
+- Streaming token generation with real-time UI updates
+- Progress tracking during model download
 
-## Quick Start
+## Requirements
 
-### Browser Demo
-
-```bash
-# Clone repo
-git clone https://github.com/anthropics/llama-cpp-wasm-qwen3.git
-cd llama-cpp-wasm-qwen3
-
-# Download WASM assets
-chmod +x scripts/download_llama_cpp_wasm_assets.sh
-./scripts/download_llama_cpp_wasm_assets.sh
-
-# Download model (example)
-mkdir -p qwen3-browser-demo/models
-# Place your Qwen3 GGUF model here
-
-# Start server
-cd qwen3-browser-demo
-npx http-server -p 8080 --cors -c-1
-
-# Open http://localhost:8080
-```
-
-### Chrome Extension
-
-1. Copy WASM files to `extension/js/lib/`:
-   ```bash
-   cp qwen3-browser-demo/llama-mt/main.js extension/js/lib/
-   cp qwen3-browser-demo/llama-mt/main.wasm extension/js/lib/
-   ```
-
-2. Add model to `extension/models/`:
-   ```bash
-   mkdir -p extension/models
-   # Copy your .gguf file here
-   ```
-
-3. Load in Chrome:
-   - Go to `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked" and select the `extension/` directory
-
-4. Click the extension icon and "Load Model"
+- Modern browser with WebAssembly support
+- SharedArrayBuffer support (requires COOP/COEP headers)
+- Approximately 1GB of available memory
+- The Qwen3-0.6B GGUF model file (~806MB)
 
 ## Project Structure
 
 ```
 .
-├── extension/              # Chrome extension (MV3)
-│   ├── manifest.json
-│   ├── html/               # Popup and offscreen HTML
-│   ├── css/                # Styles
+├── qwen3-browser-demo/     # Standalone browser demo
+│   ├── index.html          # Main demo page
+│   ├── server.js           # Development server with COOP/COEP headers
+│   ├── dev.sh              # Development utilities script
+│   ├── wllama/             # wllama WASM binaries and JavaScript
+│   └── models/             # GGUF model files (not included)
+│
+├── extension/              # Chrome extension
+│   ├── manifest.json       # Extension manifest (MV3)
 │   ├── js/
-│   │   ├── popup.js        # Popup UI
-│   │   ├── background.js   # Service worker
-│   │   ├── offscreen.js    # Worker host
-│   │   └── lib/            # WASM runtime
-│   └── models/             # Model files (not in git)
+│   │   ├── background.js   # Service worker message broker
+│   │   ├── offscreen.js    # Offscreen document for WASM worker
+│   │   ├── popup.js        # Popup UI controller
+│   │   └── wllama/         # wllama WASM binaries
+│   ├── html/               # HTML pages
+│   └── models/             # GGUF model files (not included)
 │
-├── qwen3-browser-demo/     # Standalone web demo
-│   ├── index.html
-│   ├── llama-mt/           # WASM runtime
-│   └── models/             # Model files (not in git)
-│
-├── llama-cpp-wasm/         # Build scripts for WASM
-│
-├── docs/                   # Documentation
-│   ├── ARCHITECTURE.md
-│   ├── SETUP.md
-│   └── API.md
-│
-└── scripts/                # Setup scripts
+└── docs/                   # Documentation and screenshots
 ```
 
-## Usage
+## Quick Start
 
-### JavaScript API
+### Browser Demo
 
-```javascript
-import { LlamaCpp } from './llama-mt/llama.js';
+1. Download the Qwen3-0.6B GGUF model:
+   ```bash
+   # Create models directory
+   mkdir -p qwen3-browser-demo/models
 
-const llm = new LlamaCpp(
-  '/models/qwen3.gguf',
-  () => console.log('Model ready'),
-  (token) => process.stdout.write(token),
-  () => console.log('Done')
-);
+   # Download from Hugging Face
+   # https://huggingface.co/unsloth/Qwen3-0.6B-GGUF
+   # Place the file as: qwen3-browser-demo/models/Qwen3-0.6B-UD-Q8_K_XL.gguf
+   ```
 
-llm.run({
-  prompt: 'Write a haiku about code:',
-  n_predict: 50,
-  temp: 0.7
-});
-```
+2. Start the development server:
+   ```bash
+   cd qwen3-browser-demo
+   node server.js
+   ```
 
-See [docs/API.md](docs/API.md) for full API reference.
+3. Open http://localhost:8080 in your browser
 
-## Recommended Models
+4. Click "Load Model" and wait for the download to complete
 
-| Model | Size | Notes |
-|-------|------|-------|
-| Qwen3-0.6B-Q4_K_M | ~350MB | Best for speed |
-| Qwen3-0.6B-Q8_0 | ~650MB | Better quality |
+5. Enter a prompt and click "Send"
 
-Download from [Hugging Face](https://huggingface.co/Qwen).
+### Chrome Extension
 
-## Requirements
+1. Download the model file to `extension/models/Qwen3-0.6B-UD-Q8_K_XL.gguf`
 
-- Chrome 116+ (for extension)
-- Modern browser with WebAssembly support
-- ~1GB RAM minimum
+2. Load the extension in Chrome:
+   - Navigate to `chrome://extensions`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `extension` directory
 
-## Documentation
+3. Click the extension icon and use the popup interface
 
-- [Architecture](docs/ARCHITECTURE.md) - System design and message flow
-- [Setup Guide](docs/SETUP.md) - Detailed installation instructions
-- [API Reference](docs/API.md) - JavaScript API documentation
+## Development
 
-## Building WASM
+### Using dev.sh
 
-To rebuild the llama.cpp WebAssembly module:
+The browser demo includes a development script with common commands:
 
 ```bash
-# Install Emscripten
-git clone https://github.com/emscripten-core/emsdk.git
-cd emsdk
-./emsdk install latest
-./emsdk activate latest
-source ./emsdk_env.sh
+cd qwen3-browser-demo
 
-# Build
-cd llama-cpp-wasm
-./build-multi-thread.sh
+# Start the development server
+./dev.sh start
+
+# Kill any process on port 8080
+./dev.sh kill
+
+# Check if model file exists
+./dev.sh model
+
+# Clean and reinstall dependencies
+./dev.sh clean
+
+# Show help
+./dev.sh help
 ```
+
+### Server Requirements
+
+The development server must set these HTTP headers for SharedArrayBuffer to work:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+The included `server.js` sets these headers automatically.
+
+## Technical Details
+
+### Architecture
+
+The browser demo uses a simple architecture:
+- Main thread handles UI and user interaction
+- wllama manages a Web Worker for WASM execution
+- Model weights are cached in IndexedDB after first download
+
+The Chrome extension uses a more complex architecture due to MV3 restrictions:
+- Service worker (background.js) handles message routing
+- Offscreen document hosts the wllama Web Worker
+- Popup UI communicates via chrome.runtime messaging
+
+### Model Format
+
+This project uses GGUF (GPT-Generated Unified Format) model files. The recommended model is:
+
+- **Model**: Qwen3-0.6B-UD-Q8_K_XL
+- **Size**: ~806MB
+- **Quantization**: Q8_K_XL (8-bit)
+- **Source**: [Hugging Face](https://huggingface.co/unsloth/Qwen3-0.6B-GGUF)
+
+### Performance Considerations
+
+- First load downloads the full model (~806MB)
+- Subsequent loads use the IndexedDB cache
+- Multi-threading requires SharedArrayBuffer (COOP/COEP headers)
+- Single-threaded fallback is available for incompatible environments
+- Inference speed depends on device CPU capabilities
+
+## Dependencies
+
+- [wllama](https://github.com/ngxson/wllama) - WebAssembly bindings for llama.cpp
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) - C++ LLM inference library
+
+## References
+
+- [wllama Documentation](https://github.ngxson.com/wllama/docs/)
+- [llama.cpp Repository](https://github.com/ggerganov/llama.cpp)
+- [Qwen3 Models](https://huggingface.co/Qwen)
+- [Chrome Extensions MV3](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)
+- [Cross-Origin Isolation Guide](https://web.dev/cross-origin-isolation-guide/)
 
 ## License
 
-MIT
-
-## Acknowledgments
-
-- [llama.cpp](https://github.com/ggerganov/llama.cpp)
-- [llama-cpp-wasm](https://github.com/tangledgroup/llama-cpp-wasm)
-- [Qwen](https://huggingface.co/Qwen)
+MIT License
