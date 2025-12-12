@@ -289,14 +289,6 @@
       promptInput.disabled = false;
     }
 
-    function onError(error) {
-      console.error('LlamaCpp error:', error);
-      addMessage('Error: ' + error, 'error-message');
-      sendBtn.disabled = false;
-      sendBtn.classList.remove('loading');
-      promptInput.disabled = false;
-    }
-
     // Load Model
     loadModelBtn.addEventListener('click', () => {
       if (isModelLoaded) {
@@ -314,7 +306,7 @@
       const modelPath = './models/Qwen3-0.6B-UD-Q8_K_XL.gguf';
 
       try {
-        llamaInstance = new LlamaCpp(modelPath, onInit, onToken, onComplete, onError);
+        llamaInstance = new LlamaCpp(modelPath, onInit, onToken, onComplete);
       } catch (error) {
         console.error('Failed to create LlamaCpp instance:', error);
         addMessage('Failed to load model: ' + error.message, 'error-message');
