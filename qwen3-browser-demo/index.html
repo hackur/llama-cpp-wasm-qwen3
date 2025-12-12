@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Qwen3 Browser Demo - llama.cpp WASM</title>
+  <title>Qwen3 Browser Demo - wllama</title>
   <style>
     * {
       box-sizing: border-box;
@@ -57,6 +57,24 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
+    }
+    .progress-container {
+      width: 100%;
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      margin: 10px 0;
+      display: none;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 20px;
+      background-color: #3498db;
+      border-radius: 4px;
+      text-align: center;
+      line-height: 20px;
+      color: white;
+      font-size: 12px;
+      transition: width 0.3s ease;
     }
     .chat-container {
       background-color: #fff;
@@ -183,8 +201,8 @@
   </style>
 </head>
 <body>
-  <h1>🦙 Qwen3 Browser Demo</h1>
-  <p class="subtitle">Running Qwen3-0.6B locally in your browser with llama.cpp WASM</p>
+  <h1>Qwen3 Browser Demo</h1>
+  <p class="subtitle">Running Qwen3-0.6B locally in your browser with wllama</p>
 
   <div class="status-bar">
     <div class="status-indicator">
@@ -192,6 +210,10 @@
       <span id="statusText">Model not loaded</span>
     </div>
     <span id="modelInfo">Qwen3-0.6B-UD-Q8_K_XL (~806MB)</span>
+  </div>
+
+  <div class="progress-container" id="progressContainer">
+    <div class="progress-bar" id="progressBar">0%</div>
   </div>
 
   <div class="button-row">
@@ -215,11 +237,18 @@
       <li>Model is cached after first download for faster subsequent loads</li>
       <li>Uses WebAssembly with multi-threading for better performance</li>
       <li>Requires a modern browser with SharedArrayBuffer support</li>
+      <li>Powered by <a href="https://github.com/ngxson/wllama">wllama</a></li>
     </ul>
   </div>
 
   <script type="module">
-    import { LlamaCpp } from './llama-mt/llama.js';
+    import { Wllama } from './wllama/index.js';
+
+    // WASM paths configuration
+    const CONFIG_PATHS = {
+      'single-thread/wllama.wasm': './wllama/single-thread/wllama.wasm',
+      'multi-thread/wllama.wasm': './wllama/multi-thread/wllama.wasm',
+    };
 
     // DOM Elements
     const loadModelBtn = document.getElementById('loadModelBtn');
@@ -228,11 +257,12 @@
     const responseArea = document.getElementById('responseArea');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
 
     // State
-    let llamaInstance = null;
+    let wllama = null;
     let isModelLoaded = false;
-    let currentResponse = '';
 
     // Helper to add messages to response area
     function addMessage(text, className = '') {
@@ -260,37 +290,14 @@
       statusText.textContent = text;
     }
 
-    // Callbacks for LlamaCpp
-    function onInit() {
-      console.log('Model initialized');
-      isModelLoaded = true;
-      setStatus('ready', 'Model loaded and ready!');
-      loadModelBtn.disabled = false;
-      loadModelBtn.classList.remove('loading');
-      loadModelBtn.textContent = 'Model Loaded';
-      sendBtn.disabled = false;
-      addMessage('Model loaded successfully! You can now send prompts.', 'status-message');
-    }
-
-    function onToken(text) {
-      currentResponse += text;
-      // Update the last response element
-      if (responseArea.lastElementChild && responseArea.lastElementChild.classList.contains('model-response')) {
-        responseArea.lastElementChild.textContent = 'Model: ' + currentResponse;
-      }
-      responseArea.scrollTop = responseArea.scrollHeight;
-    }
-
-    function onComplete() {
-      console.log('Generation complete');
-      currentResponse = '';
-      sendBtn.disabled = false;
-      sendBtn.classList.remove('loading');
-      promptInput.disabled = false;
+    // Update progress bar
+    function setProgress(percent) {
+      progressBar.style.width = percent + '%';
+      progressBar.textContent = percent + '%';
     }
 
     // Load Model
-    loadModelBtn.addEventListener('click', () => {
+    loadModelBtn.addEventListener('click', async () => {
       if (isModelLoaded) {
         addMessage('Model is already loaded!', 'status-message');
         return;
@@ -299,28 +306,51 @@
       clearResponses();
       addMessage('Loading model... This may take a while on first load (~806MB download)', 'status-message');
       setStatus('loading', 'Loading model...');
+      progressContainer.style.display = 'block';
 
       loadModelBtn.disabled = true;
       loadModelBtn.classList.add('loading');
 
-      const modelPath = './models/Qwen3-0.6B-UD-Q8_K_XL.gguf';
-
       try {
-        llamaInstance = new LlamaCpp(modelPath, onInit, onToken, onComplete);
+        wllama = new Wllama(CONFIG_PATHS, {
+          allowOffline: true,
+        });
+
+        const modelUrl = new URL('./models/Qwen3-0.6B-UD-Q8_K_XL.gguf', window.location.href).href;
+
+        await wllama.loadModelFromUrl(modelUrl, {
+          n_ctx: 2048,
+          progressCallback: ({ loaded, total }) => {
+            const percent = Math.round((loaded / total) * 100);
+            setProgress(percent);
+            setStatus('loading', `Loading model... ${percent}%`);
+          },
+        });
+
+        isModelLoaded = true;
+        progressContainer.style.display = 'none';
+        setStatus('ready', 'Model loaded and ready!');
+        loadModelBtn.disabled = false;
+        loadModelBtn.classList.remove('loading');
+        loadModelBtn.textContent = 'Model Loaded';
+        sendBtn.disabled = false;
+        addMessage('Model loaded successfully! You can now send prompts.', 'status-message');
+
       } catch (error) {
-        console.error('Failed to create LlamaCpp instance:', error);
+        console.error('Failed to load model:', error);
         addMessage('Failed to load model: ' + error.message, 'error-message');
         setStatus('error', 'Failed to load');
+        progressContainer.style.display = 'none';
         loadModelBtn.disabled = false;
         loadModelBtn.classList.remove('loading');
       }
     });
 
     // Send Prompt
-    sendBtn.addEventListener('click', () => {
+    sendBtn.addEventListener('click', async () => {
       const prompt = promptInput.value.trim();
       if (!prompt) return;
-      if (!isModelLoaded || !llamaInstance) {
+      if (!isModelLoaded || !wllama) {
         addMessage('Please load the model first!', 'error-message');
         return;
       }
@@ -332,17 +362,31 @@
       sendBtn.classList.add('loading');
 
       // Add placeholder for model response
-      currentResponse = '';
-      addMessage('Model: ', 'model-response');
+      const responseEl = addMessage('Model: ', 'model-response');
+      let currentText = '';
 
-      llamaInstance.run({
-        prompt: prompt,
-        n_predict: 256,
-        temp: 0.7,
-        top_k: 40,
-        top_p: 0.9,
-        ctx_size: 2048
-      });
+      try {
+        await wllama.createCompletion(prompt, {
+          nPredict: 256,
+          sampling: {
+            temp: 0.7,
+            top_k: 40,
+            top_p: 0.9,
+          },
+          onNewToken: (token, piece, fullText) => {
+            currentText = fullText;
+            responseEl.textContent = 'Model: ' + currentText;
+            responseArea.scrollTop = responseArea.scrollHeight;
+          },
+        });
+      } catch (error) {
+        console.error('Generation error:', error);
+        addMessage('Error: ' + error.message, 'error-message');
+      }
+
+      sendBtn.disabled = false;
+      sendBtn.classList.remove('loading');
+      promptInput.disabled = false;
     });
 
     // Allow Enter key to send (Shift+Enter for new line)

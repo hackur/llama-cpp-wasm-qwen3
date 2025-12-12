@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "llm-proxy-ext",
-  "version": "0.1.0",
-  "description": "A Chrome extension to proxy LLM requests, initially using a local Qwen3 model via llama-cpp-wasm.",
+  "name": "Qwen3 Local LLM",
+  "version": "0.2.0",
+  "description": "Run Qwen3 locally in your browser using wllama",
   "icons": {
     "16": "icons/ic_forum_24px.svg",
     "48": "icons/ic_forum_24px.svg",
@@ -27,10 +27,10 @@
     {
       "resources": [
         "icons/ic_forum_24px.svg",
-        "js/lib/main.wasm",
+        "js/wllama/*",
         "models/*"
       ],
-      "matches": [ "<all_urls>" ]
+      "matches": ["<all_urls>"]
     }
   ]
 }
