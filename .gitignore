@@ -26,7 +26,10 @@ node_modules/
 
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# MCP config with sensitive data
+.roo/mcp.json 
 
 llama-cpp-wasm
 *.gguf

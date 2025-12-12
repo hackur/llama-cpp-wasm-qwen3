@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qwen3 Browser Demo - llama.cpp WASM</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #7f8c8d;
+      margin-bottom: 20px;
+    }
+    .status-bar {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px 15px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #e74c3c;
+    }
+    .status-dot.loading {
+      background-color: #f39c12;
+      animation: pulse 1s infinite;
+    }
+    .status-dot.ready {
+      background-color: #27ae60;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .chat-container {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .response-area {
+      min-height: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 15px;
+      background-color: #fafafa;
+    }
+    .response-area p {
+      margin: 0 0 10px 0;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+    .user-prompt {
+      color: #2980b9;
+      font-weight: bold;
+    }
+    .model-response {
+      color: #2c3e50;
+      white-space: pre-wrap;
+    }
+    .status-message {
+      color: #7f8c8d;
+      font-style: italic;
+    }
+    .error-message {
+      color: #e74c3c;
+    }
+    .input-area {
+      display: flex;
+      gap: 10px;
+    }
+    textarea {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: vertical;
+      min-height: 60px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea:focus {
+      outline: 2px solid #3498db;
+      outline-offset: 2px;
+      border-color: #3498db;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover:not(:disabled) {
+      background-color: #2980b9;
+    }
+    button:active:not(:disabled) {
+      background-color: #2471a3;
+    }
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    button.loading {
+      position: relative;
+      color: transparent;
+    }
+    button.loading::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      top: 50%;
+      left: 50%;
+      margin-left: -8px;
+      margin-top: -8px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spinner 0.6s linear infinite;
+    }
+    @keyframes spinner {
+      to { transform: rotate(360deg); }
+    }
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .info-panel {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      font-size: 13px;
+      color: #555;
+    }
+    .info-panel h3 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+    }
+    .info-panel ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .info-panel li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🦙 Qwen3 Browser Demo</h1>
+  <p class="subtitle">Running Qwen3-0.6B locally in your browser with llama.cpp WASM</p>
+
+  <div class="status-bar">
+    <div class="status-indicator">
+      <div id="statusDot" class="status-dot"></div>
+      <span id="statusText">Model not loaded</span>
+    </div>
+    <span id="modelInfo">Qwen3-0.6B-UD-Q8_K_XL (~806MB)</span>
+  </div>
+
+  <div class="button-row">
+    <button id="loadModelBtn">Load Model</button>
+  </div>
+
+  <div class="chat-container">
+    <div id="responseArea" class="response-area">
+      <p class="status-message">Click "Load Model" to start. The model (~806MB) will be downloaded and cached.</p>
+    </div>
+    <div class="input-area">
+      <textarea id="promptInput" placeholder="Enter your prompt here..." rows="3"></textarea>
+      <button id="sendBtn" disabled>Send</button>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <h3>About this demo</h3>
+    <ul>
+      <li>Runs entirely in your browser - no server required</li>
+      <li>Model is cached after first download for faster subsequent loads</li>
+      <li>Uses WebAssembly with multi-threading for better performance</li>
+      <li>Requires a modern browser with SharedArrayBuffer support</li>
+    </ul>
+  </div>
+
+  <script type="module">
+    import { LlamaCpp } from './llama-mt/llama.js';
+
+    // DOM Elements
+    const loadModelBtn = document.getElementById('loadModelBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const promptInput = document.getElementById('promptInput');
+    const responseArea = document.getElementById('responseArea');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+
+    // State
+    let llamaInstance = null;
+    let isModelLoaded = false;
+    let currentResponse = '';
+
+    // Helper to add messages to response area
+    function addMessage(text, className = '') {
+      const p = document.createElement('p');
+      p.textContent = text;
+      if (className) p.className = className;
+      responseArea.appendChild(p);
+      responseArea.scrollTop = responseArea.scrollHeight;
+      return p;
+    }
+
+    // Clear response area
+    function clearResponses() {
+      responseArea.innerHTML = '';
+    }
+
+    // Update status display
+    function setStatus(status, text) {
+      statusDot.className = 'status-dot';
+      if (status === 'loading') {
+        statusDot.classList.add('loading');
+      } else if (status === 'ready') {
+        statusDot.classList.add('ready');
+      }
+      statusText.textContent = text;
+    }
+
+    // Callbacks for LlamaCpp
+    function onInit() {
+      console.log('Model initialized');
+      isModelLoaded = true;
+      setStatus('ready', 'Model loaded and ready!');
+      loadModelBtn.disabled = false;
+      loadModelBtn.classList.remove('loading');
+      loadModelBtn.textContent = 'Model Loaded';
+      sendBtn.disabled = false;
+      addMessage('Model loaded successfully! You can now send prompts.', 'status-message');
+    }
+
+    function onToken(text) {
+      currentResponse += text;
+      // Update the last response element
+      if (responseArea.lastElementChild && responseArea.lastElementChild.classList.contains('model-response')) {
+        responseArea.lastElementChild.textContent = 'Model: ' + currentResponse;
+      }
+      responseArea.scrollTop = responseArea.scrollHeight;
+    }
+
+    function onComplete() {
+      console.log('Generation complete');
+      currentResponse = '';
+      sendBtn.disabled = false;
+      sendBtn.classList.remove('loading');
+      promptInput.disabled = false;
+    }
+
+    function onError(error) {
+      console.error('LlamaCpp error:', error);
+      addMessage('Error: ' + error, 'error-message');
+      sendBtn.disabled = false;
+      sendBtn.classList.remove('loading');
+      promptInput.disabled = false;
+    }
+
+    // Load Model
+    loadModelBtn.addEventListener('click', () => {
+      if (isModelLoaded) {
+        addMessage('Model is already loaded!', 'status-message');
+        return;
+      }
+
+      clearResponses();
+      addMessage('Loading model... This may take a while on first load (~806MB download)', 'status-message');
+      setStatus('loading', 'Loading model...');
+
+      loadModelBtn.disabled = true;
+      loadModelBtn.classList.add('loading');
+
+      const modelPath = './models/Qwen3-0.6B-UD-Q8_K_XL.gguf';
+
+      try {
+        llamaInstance = new LlamaCpp(modelPath, onInit, onToken, onComplete, onError);
+      } catch (error) {
+        console.error('Failed to create LlamaCpp instance:', error);
+        addMessage('Failed to load model: ' + error.message, 'error-message');
+        setStatus('error', 'Failed to load');
+        loadModelBtn.disabled = false;
+        loadModelBtn.classList.remove('loading');
+      }
+    });
+
+    // Send Prompt
+    sendBtn.addEventListener('click', () => {
+      const prompt = promptInput.value.trim();
+      if (!prompt) return;
+      if (!isModelLoaded || !llamaInstance) {
+        addMessage('Please load the model first!', 'error-message');
+        return;
+      }
+
+      addMessage('You: ' + prompt, 'user-prompt');
+      promptInput.value = '';
+      promptInput.disabled = true;
+      sendBtn.disabled = true;
+      sendBtn.classList.add('loading');
+
+      // Add placeholder for model response
+      currentResponse = '';
+      addMessage('Model: ', 'model-response');
+
+      llamaInstance.run({
+        prompt: prompt,
+        n_predict: 256,
+        temp: 0.7,
+        top_k: 40,
+        top_p: 0.9,
+        ctx_size: 2048
+      });
+    });
+
+    // Allow Enter key to send (Shift+Enter for new line)
+    promptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>

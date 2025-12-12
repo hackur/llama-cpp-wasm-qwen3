@@ -1,172 +1,156 @@
-# Qwen3 0.6B with llama-cpp-wasm
+# llama-cpp-wasm-qwen3
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Run Qwen3 language models entirely in the browser using WebAssembly.
 
-A web-based implementation of the Qwen3 0.6B language model using `llama-cpp-wasm`, enabling in-browser execution with tool calling and code suggestion capabilities.
+## Features
 
-## 🚀 Features
+- **No server required** - Everything runs client-side
+- **Web Worker threading** - UI stays responsive during inference
+- **Model caching** - Downloads cached via Cache API
+- **Two interfaces** - Standalone web demo and Chrome extension
 
-- **In-Browser Execution**: Runs entirely in the browser using WebAssembly
-- **Multi-threaded Processing**: Utilizes Web Workers for improved performance
-- **Tool Calling**: Supports function calling capabilities
-- **Code Suggestions**: Provides intelligent code completions for HTML, CSS, and JavaScript
-- **No Server Required**: All processing happens client-side
+## Quick Start
 
-## 📦 Prerequisites
+### Browser Demo
 
-- Modern web browser (Chrome, Firefox, Edge, or Safari)
-- Node.js (for local development)
-- Git (for cloning the repository)
+```bash
+# Clone repo
+git clone https://github.com/anthropics/llama-cpp-wasm-qwen3.git
+cd llama-cpp-wasm-qwen3
 
-## 🛠️ Installation
+# Download WASM assets
+chmod +x scripts/download_llama_cpp_wasm_assets.sh
+./scripts/download_llama_cpp_wasm_assets.sh
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/llama-cpp-wasm-qwen3.git
-   cd llama-cpp-wasm-qwen3
-   ```
+# Download model (example)
+mkdir -p qwen3-browser-demo/models
+# Place your Qwen3 GGUF model here
 
-2. Install dependencies (for development):
-   ```bash
-   npm install -g http-server
-   ```
+# Start server
+cd qwen3-browser-demo
+npx http-server -p 8080 --cors -c-1
 
-3. Download the required WebAssembly assets:
-   ```bash
-   chmod +x scripts/download_llama_cpp_wasm_assets.sh
-   ./scripts/download_llama_cpp_wasm_assets.sh
-   ```
-
-## 🏃‍♂️ Quick Start
-
-1. Place your Qwen3 GGUF model in the models directory:
-   ```bash
-   mkdir -p qwen3-browser-demo/models
-   # Copy your Qwen3-0.6B-UD-Q8_K_XL.gguf to qwen3-browser-demo/models/
-   ```
-
-2. Start a local web server:
-   ```bash
-   cd qwen3-browser-demo
-   http-server -p 8080
-   ```
-
-3. Open your browser and navigate to:
-   ```
-   http://localhost:8080
-   ```
-
-## 🧩 Project Structure
-
-```
-qwen3-browser-demo/
-├── llama-mt/               # llama-cpp-wasm runtime files
-│   ├── llama.js            # Main library interface
-│   ├── main-worker.js      # Web Worker implementation
-│   ├── actions.js          # Action definitions
-│   ├── utility.js          # Helper functions
-│   ├── main.js             # WASM module loader
-│   └── main.wasm           # Compiled WebAssembly module
-├── models/                 # Store your GGUF models here
-│   └── model.bin           # Symlink to your actual model file
-└── index.html              # Demo interface
-
-scripts/
-├── download_llama_cpp_wasm_assets.sh  # Asset downloader
-└── example_prd.txt                    # Example project requirements
+# Open http://localhost:8080
 ```
 
-## 🤖 Usage
+### Chrome Extension
 
-### Initialization
+1. Copy WASM files to `extension/js/lib/`:
+   ```bash
+   cp qwen3-browser-demo/llama-mt/main.js extension/js/lib/
+   cp qwen3-browser-demo/llama-mt/main.wasm extension/js/lib/
+   ```
+
+2. Add model to `extension/models/`:
+   ```bash
+   mkdir -p extension/models
+   # Copy your .gguf file here
+   ```
+
+3. Load in Chrome:
+   - Go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked" and select the `extension/` directory
+
+4. Click the extension icon and "Load Model"
+
+## Project Structure
+
+```
+.
+├── extension/              # Chrome extension (MV3)
+│   ├── manifest.json
+│   ├── html/               # Popup and offscreen HTML
+│   ├── css/                # Styles
+│   ├── js/
+│   │   ├── popup.js        # Popup UI
+│   │   ├── background.js   # Service worker
+│   │   ├── offscreen.js    # Worker host
+│   │   └── lib/            # WASM runtime
+│   └── models/             # Model files (not in git)
+│
+├── qwen3-browser-demo/     # Standalone web demo
+│   ├── index.html
+│   ├── llama-mt/           # WASM runtime
+│   └── models/             # Model files (not in git)
+│
+├── llama-cpp-wasm/         # Build scripts for WASM
+│
+├── docs/                   # Documentation
+│   ├── ARCHITECTURE.md
+│   ├── SETUP.md
+│   └── API.md
+│
+└── scripts/                # Setup scripts
+```
+
+## Usage
+
+### JavaScript API
 
 ```javascript
 import { LlamaCpp } from './llama-mt/llama.js';
 
-// Initialize the model
-const llama = new LlamaCpp(
-  '/models/your-model.gguf',  // Path to GGUF model
-  onModelLoaded,             // Callback when model is loaded
-  onTokenGenerated,          // Callback for each generated token
-  onGenerationComplete       // Callback when generation completes
+const llm = new LlamaCpp(
+  '/models/qwen3.gguf',
+  () => console.log('Model ready'),
+  (token) => process.stdout.write(token),
+  () => console.log('Done')
 );
 
-function onModelLoaded() {
-  console.log('Model loaded and ready');
-}
-
-function onTokenGenerated(token) {
-  process.stdout.write(token);
-}
-
-function onGenerationComplete() {
-  console.log('\nGeneration complete');
-}
-```
-
-### Text Generation
-
-```javascript
-// Start text generation
-llama.generate({
-  prompt: 'Hello, world!',
-  n_predict: 100,           // Number of tokens to generate
-  temp: 0.7,                // Temperature (0-2, lower = more focused)
-  top_k: 40,               // Top-k sampling
-  top_p: 0.95,              // Nucleus sampling
-  n_gpu_layers: 20          // Number of layers to offload to GPU
+llm.run({
+  prompt: 'Write a haiku about code:',
+  n_predict: 50,
+  temp: 0.7
 });
-
-// Stop generation
-llama.stop();
 ```
 
-## 🛠️ Development
+See [docs/API.md](docs/API.md) for full API reference.
 
-### Building from Source
+## Recommended Models
 
-If you need to modify the WebAssembly components:
+| Model | Size | Notes |
+|-------|------|-------|
+| Qwen3-0.6B-Q4_K_M | ~350MB | Best for speed |
+| Qwen3-0.6B-Q8_0 | ~650MB | Better quality |
 
-1. Install Emscripten SDK:
-   ```bash
-   git clone https://github.com/emscripten-core/emsdk.git
-   cd emsdk
-   ./emsdk install latest
-   ./emsdk activate latest
-   source ./emsdk_env.sh
-   ```
+Download from [Hugging Face](https://huggingface.co/Qwen).
 
-2. Build the project:
-   ```bash
-   ./build-multi-thread.sh
-   ```
+## Requirements
 
-### Adding Tool Calling
+- Chrome 116+ (for extension)
+- Modern browser with WebAssembly support
+- ~1GB RAM minimum
 
-To implement tool calling functionality:
+## Documentation
 
-1. Define your tool specifications in `llama-mt/actions.js`
-2. Update the worker message handler in `llama-mt/main-worker.js`
-3. Implement tool execution logic in your main application
+- [Architecture](docs/ARCHITECTURE.md) - System design and message flow
+- [Setup Guide](docs/SETUP.md) - Detailed installation instructions
+- [API Reference](docs/API.md) - JavaScript API documentation
 
-## 📝 License
+## Building WASM
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+To rebuild the llama.cpp WebAssembly module:
 
-## 🙏 Acknowledgments
+```bash
+# Install Emscripten
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk
+./emsdk install latest
+./emsdk activate latest
+source ./emsdk_env.sh
 
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) - C/C++ inference of LLaMA models
-- [llama-cpp-wasm](https://github.com/tangledgroup/llama-cpp-wasm) - WebAssembly port of llama.cpp
-- [Qwen](https://huggingface.co/Qwen) - The Qwen language models
+# Build
+cd llama-cpp-wasm
+./build-multi-thread.sh
+```
 
-## 📄 TODO
+## License
 
-- [ ] Add more comprehensive error handling
-- [ ] Implement streaming responses
-- [ ] Add support for more model formats
-- [ ] Improve documentation and examples
-- [ ] Add CI/CD pipeline for automated testing
+MIT
 
-## 🤝 Contributing
+## Acknowledgments
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- [llama.cpp](https://github.com/ggerganov/llama.cpp)
+- [llama-cpp-wasm](https://github.com/tangledgroup/llama-cpp-wasm)
+- [Qwen](https://huggingface.co/Qwen)

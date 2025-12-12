@@ -1,143 +1,200 @@
-// popup.js - Logic for the Qwen3 Extension popup
+/**
+ * @file popup.js
+ * @description Extension popup UI controller
+ *
+ * Manages the popup interface for the llama.cpp Chrome extension.
+ * Handles user input, model loading requests, and displays inference results.
+ *
+ * @author llama-cpp-wasm-qwen3
+ * @license MIT
+ */
 
+/**
+ * Initialize the popup when DOM is ready.
+ * @listens DOMContentLoaded
+ */
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('Popup: DOMContentLoaded event fired. popup.js starting.'); // <-- ADD THIS LOG
+  /** @type {HTMLTextAreaElement} */
   const promptInput = document.getElementById('promptInput');
-  const sendButton = document.getElementById('sendButton');
-  const loadModelButton = document.getElementById('loadModelButton');
-  const responseArea = document.getElementById('responseArea');
-  const modelStatusSpan = document.getElementById('modelStatus');
-  const checkOffscreenButton = document.getElementById('checkOffscreenButton');
-  const offscreenStatusSpan = document.getElementById('offscreenStatus');
-  console.log('Popup: Attempting to get checkOffscreenButton. ID used: checkOffscreenButton');
 
-  // Function to add messages to the response area
-  function addMessageToResponseArea(text, type = 'info') {
-    const messageElement = document.createElement('p');
-    messageElement.textContent = text;
-    messageElement.className = type; // for styling (e.g., 'user-prompt', 'model-response', 'error')
-    responseArea.appendChild(messageElement);
-    responseArea.scrollTop = responseArea.scrollHeight; // Scroll to the bottom
+  /** @type {HTMLButtonElement} */
+  const sendButton = document.getElementById('sendButton');
+
+  /** @type {HTMLButtonElement|null} */
+  const loadModelButton = document.getElementById('loadModelButton');
+
+  /** @type {HTMLDivElement} */
+  const responseArea = document.getElementById('responseArea');
+
+  /** @type {HTMLSpanElement} */
+  const modelStatusSpan = document.getElementById('modelStatus');
+
+  /** @type {HTMLButtonElement|null} */
+  const checkOffscreenButton = document.getElementById('checkOffscreenButton');
+
+  /** @type {HTMLSpanElement|null} */
+  const offscreenStatusSpan = document.getElementById('offscreenStatus');
+
+  // Bail out if required elements are missing
+  if (!promptInput || !sendButton || !responseArea || !modelStatusSpan) {
+    console.error('Missing required DOM elements');
+    return;
   }
 
-  // Check initial model status from storage
+  /**
+   * Appends a message to the response area.
+   *
+   * @param {string} text - Message content
+   * @param {string} [type='info'] - CSS class for styling: 'info' | 'error' | 'status' | 'user-prompt' | 'model-response'
+   */
+  function addMessage(text, type = 'info') {
+    const p = document.createElement('p');
+    p.textContent = text;
+    p.className = type;
+    responseArea.appendChild(p);
+    responseArea.scrollTop = responseArea.scrollHeight;
+  }
+
+  /**
+   * Sets the loading state of a button.
+   *
+   * @param {HTMLButtonElement|null} button - Target button element
+   * @param {boolean} loading - Whether to show loading state
+   */
+  function setButtonLoading(button, loading) {
+    if (!button) return;
+    button.disabled = loading;
+    button.classList.toggle('loading', loading);
+  }
+
+  // Restore persisted model status
   chrome.storage.local.get('modelStatus', (data) => {
     modelStatusSpan.textContent = data.modelStatus || 'not_loaded';
   });
 
-  // Listen for model status updates from background script (if we implement this)
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  /**
+   * Handles status updates from the background script.
+   * @listens chrome.runtime.onMessage
+   */
+  chrome.runtime.onMessage.addListener((request) => {
     if (request.action === 'UPDATE_MODEL_STATUS') {
       modelStatusSpan.textContent = request.status;
-      chrome.storage.local.set({ modelStatus: request.status });
+
       if (request.message) {
-        addMessageToResponseArea(`Status: ${request.message}`, 'status');
+        addMessage(`Status: ${request.message}`, 'status');
       }
+
+      const isLoading = request.status === 'loading';
+      const isReady = request.status === 'loaded';
+
+      setButtonLoading(loadModelButton, isLoading);
+      sendButton.disabled = isLoading || !isReady;
     }
+    return false;
   });
 
-  // Handle Send button click
+  /**
+   * Sends the user's prompt to the model.
+   * @listens click
+   */
   sendButton.addEventListener('click', () => {
-    const promptText = promptInput.value.trim();
-    if (promptText) {
-      addMessageToResponseArea(`You: ${promptText}`, 'user-prompt');
-      promptInput.value = ''; // Clear input field
+    const prompt = promptInput.value.trim();
+    if (!prompt) return;
 
-      chrome.runtime.sendMessage({ action: 'SEND_PROMPT', prompt: promptText }, (response) => {
+    addMessage(`You: ${prompt}`, 'user-prompt');
+    promptInput.value = '';
+    setButtonLoading(sendButton, true);
+
+    chrome.runtime.sendMessage({ action: 'SEND_PROMPT', prompt }, (response) => {
+      setButtonLoading(sendButton, false);
+
+      if (chrome.runtime.lastError) {
+        addMessage(`Error: ${chrome.runtime.lastError.message}`, 'error');
+        return;
+      }
+
+      if (response && response.success) {
+        addMessage(`Model: ${response.response}`, 'model-response');
+      } else {
+        addMessage(`Error: ${response?.message || 'No response'}`, 'error');
+      }
+    });
+  });
+
+  /**
+   * Initiates model loading.
+   * @listens click
+   */
+  if (loadModelButton) {
+    loadModelButton.addEventListener('click', () => {
+      addMessage('Loading model...', 'status');
+      modelStatusSpan.textContent = 'loading...';
+      setButtonLoading(loadModelButton, true);
+
+      chrome.runtime.sendMessage({ action: 'LOAD_MODEL' }, (response) => {
         if (chrome.runtime.lastError) {
-          addMessageToResponseArea(`Error: ${chrome.runtime.lastError.message}`, 'error');
-          console.error('Error sending message:', chrome.runtime.lastError.message);
+          addMessage(`Error: ${chrome.runtime.lastError.message}`, 'error');
+          modelStatusSpan.textContent = 'error';
+          setButtonLoading(loadModelButton, false);
           return;
         }
+
         if (response && response.success) {
-          addMessageToResponseArea(`Model: ${response.response}`, 'model-response');
+          addMessage(response.message, 'status');
         } else {
-          addMessageToResponseArea(`Error: ${response ? response.message : 'No response from background.'}`, 'error');
+          addMessage(`Failed: ${response?.message || 'Unknown error'}`, 'error');
+          modelStatusSpan.textContent = 'error';
+          setButtonLoading(loadModelButton, false);
         }
       });
-    }
-  });
-
-  // Handle Load Model button click
-  loadModelButton.addEventListener('click', () => {
-    addMessageToResponseArea('Attempting to load model...', 'status');
-    modelStatusSpan.textContent = 'loading...';
-    chrome.storage.local.set({ modelStatus: 'loading' });
-
-    console.log('Popup: Sending LOAD_MODEL message to background script.'); // <-- ADD THIS LOG
-    chrome.runtime.sendMessage({ action: 'LOAD_MODEL' }, (response) => {
-      if (chrome.runtime.lastError) {
-        addMessageToResponseArea(`Error: ${chrome.runtime.lastError.message}`, 'error');
-        modelStatusSpan.textContent = 'error';
-        chrome.storage.local.set({ modelStatus: 'error' });
-        console.error('Error sending LOAD_MODEL message:', chrome.runtime.lastError.message);
-        return;
-      }
-      if (response && response.success) {
-        addMessageToResponseArea(response.message, 'status');
-        // Background script should send 'UPDATE_MODEL_STATUS' for more detailed status changes
-      } else {
-        addMessageToResponseArea(`Failed to start model loading: ${response ? response.message : 'No response.'}`, 'error');
-        modelStatusSpan.textContent = 'error';
-        chrome.storage.local.set({ modelStatus: 'error' });
-      }
     });
-  });
-
-  // Optional: Ping the background script to check if it's alive
-  chrome.runtime.sendMessage({ action: 'PING' }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.warn('Could not ping background script:', chrome.runtime.lastError.message);
-      addMessageToResponseArea('Background script might not be active.', 'warning');
-    } else if (response && response.message === 'PONG from background script') {
-      console.log('Background script responded to PING.');
-      addMessageToResponseArea('Connected to background script.', 'status');
-    } else {
-      console.warn('Unexpected PING response:', response);
-    }
-  });
-
-  // Handle Check Offscreen Document button click
-  if (checkOffscreenButton) {
-    console.log('Popup: checkOffscreenButton element FOUND. Attaching listener.');
-    checkOffscreenButton.addEventListener('click', () => {
-    console.log('!!!!!!!!!! CHECK OFFSCREEN BUTTON CLICKED !!!!!!!!!!');
-    console.log('Popup: Check Offscreen Doc button clicked.'); // Restored original log
-    addMessageToResponseArea('Checking offscreen document status...', 'status');
-    offscreenStatusSpan.textContent = 'checking...';
-
-    chrome.runtime.sendMessage({ action: 'CHECK_OFFSCREEN_STATUS' }, (response) => {
-      console.log('Popup: Received response from CHECK_OFFSCREEN_STATUS:', response); // Restored original log
-      if (chrome.runtime.lastError) {
-        const errorMsg = `Error checking offscreen status: ${chrome.runtime.lastError.message}`;
-        addMessageToResponseArea(errorMsg, 'error');
-        offscreenStatusSpan.textContent = 'Error';
-        console.error(errorMsg);
-        return;
-      }
-      if (response && response.success) {
-        const statusText = response.hasOffscreenDocument ? 'Exists' : 'Not Found';
-        addMessageToResponseArea(`Offscreen document status: ${statusText}`, 'status');
-        offscreenStatusSpan.textContent = statusText;
-        console.log(`Popup: Offscreen status updated to: ${statusText}`); // Added log for confirmation
-      } else {
-        const failMsg = `Failed to check offscreen status: ${response ? response.error || response.message : 'No/invalid response.'}`;
-        addMessageToResponseArea(failMsg, 'error');
-        offscreenStatusSpan.textContent = 'Error';
-        console.error(failMsg);
-      }
-    });
-    console.log('Popup: CHECK_OFFSCREEN_STATUS message sending initiated.'); // Clarified log
-    });
-  } else {
-    console.error('Popup: checkOffscreenButton element NOT FOUND. Listener not attached.');
-    addMessageToResponseArea('Error: UI element for Check Offscreen Doc button not found.', 'error');
   }
 
-  // Allow sending prompt with Enter key
-  promptInput.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault(); // Prevent new line
+  // Verify background script connection
+  chrome.runtime.sendMessage({ action: 'PING' }, (response) => {
+    if (chrome.runtime.lastError) {
+      addMessage('Background script not responding.', 'warning');
+    } else if (response?.message === 'PONG from background script') {
+      addMessage('Connected to background.', 'status');
+    }
+  });
+
+  /**
+   * Debug button to check offscreen document status.
+   * @listens click
+   */
+  if (checkOffscreenButton && offscreenStatusSpan) {
+    checkOffscreenButton.addEventListener('click', () => {
+      addMessage('Checking offscreen status...', 'status');
+      offscreenStatusSpan.textContent = 'checking...';
+
+      chrome.runtime.sendMessage({ action: 'CHECK_OFFSCREEN_STATUS' }, (response) => {
+        if (chrome.runtime.lastError) {
+          offscreenStatusSpan.textContent = 'Error';
+          addMessage(`Error: ${chrome.runtime.lastError.message}`, 'error');
+          return;
+        }
+
+        if (response && response.success) {
+          const status = response.hasOffscreenDocument ? 'Active' : 'Not found';
+          offscreenStatusSpan.textContent = status;
+          addMessage(`Offscreen: ${status}`, 'status');
+        } else {
+          offscreenStatusSpan.textContent = 'Error';
+          addMessage(`Failed: ${response?.error || 'Unknown'}`, 'error');
+        }
+      });
+    });
+  }
+
+  /**
+   * Handle Enter key to submit prompt.
+   * Shift+Enter inserts a newline instead.
+   * @listens keypress
+   */
+  promptInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       sendButton.click();
     }
   });
